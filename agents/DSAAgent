@@ -1,0 +1,284 @@
+package ext.sim.agents;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+
+import bgu.dcr.az.api.*;
+import bgu.dcr.az.api.agt.*;
+import bgu.dcr.az.api.ano.*;
+import bgu.dcr.az.api.tools.*;
+
+@Algorithm(name="DSA", useIdleDetector=false)
+public class DSAAgent extends SimpleAgent {
+
+	@Variable(name="it", defaultValue="500", description="number of iterations to perform")
+	private int it = 500;
+
+	@Variable(name="p", defaultValue="0.8", description="probability of value change if assignment is valid")
+	private double p = 0.8;
+
+	@Variable(name="courseLimit", defaultValue="10", description="number of max. students per course")
+	private int courseLimit = 30;
+
+	private static LocalTime start_time;
+
+	private Random rnd = new Random();
+	private Assignment bestCpa;
+	private Assignment cpa;
+
+	private static int minExceed;
+	private int bestVal;
+	private boolean switched;
+
+	private static boolean done;
+	private static boolean first;
+
+	private List<String[]> courseCombinations = readCombinations("combinations.csv");
+	private HashMap<String, Integer> coursesAssignments; 
+
+	private static volatile int num_agents;
+
+	private static final Object counterLock = new Object();
+
+
+	private synchronized void init() {
+		synchronized(counterLock) {
+			if(!first) {
+				switched= false;
+				done = false;
+				first = true;
+				bestVal = 0;
+				num_agents = 0;
+				minExceed = Integer.MAX_VALUE;
+				start_time = LocalTime.now();
+			}
+		}
+	}
+
+	@Override
+	public void start() {
+		synchronized(counterLock) {
+			if(!first) {
+				init();
+			}
+		}
+		cpa = new Assignment();
+		assignNewValue(chooseAtRandom());
+	}
+
+	private int chooseAtRandom() {
+		return rnd.nextInt(getDomainSize());
+	}
+
+	@WhenReceived("ASSIGNMENT")
+	public void handleAssignment(int i, int v) {
+		cpa.assign(i, v);
+	}
+
+	private synchronized void update() {
+		synchronized(counterLock) {
+			num_agents++;
+		}
+	}
+
+	/** ========================= Common Functions ========================= */
+
+	private void mapAssignments() {
+		coursesAssignments = new HashMap<>();
+		for(int var: cpa.assignedVariables()) {
+			for(String str: courseCombinations.get(cpa.getAssignment(var))) {
+				if(this.coursesAssignments.get(str) == null) 
+					this.coursesAssignments.put(str, 1);
+				else 
+					this.coursesAssignments.put(str, this.coursesAssignments.get(str)+1);
+			}
+		}
+	}
+
+	private boolean checkAllAssignments() {
+		for(int val: this.coursesAssignments.values()) {
+			if(val > this.courseLimit)
+				return false;
+		}
+		return true;
+	}
+
+	private int checkAssignmentValidity(int old_val, int new_val) {
+		for(String str: courseCombinations.get(old_val)) {
+			this.coursesAssignments.put(str, this.coursesAssignments.get(str)-1);
+		}
+		for(String str: courseCombinations.get(new_val)) { 
+			if(this.coursesAssignments.get(str) != null)
+				this.coursesAssignments.put(str, this.coursesAssignments.get(str)+1);
+			else
+				this.coursesAssignments.put(str, 1);
+		}
+		int extra_courses = calculate_extra_courses();
+
+		for(String str: courseCombinations.get(new_val)) {
+			this.coursesAssignments.put(str, this.coursesAssignments.get(str));
+		}
+		for(String str: courseCombinations.get(old_val)) { 
+			this.coursesAssignments.put(str, this.coursesAssignments.get(str));
+		}
+		return extra_courses;
+	}
+
+	/** ========================= Max - Beta ========================= */
+
+	private synchronized void output(String filename) {
+		synchronized(counterLock){
+			if(num_agents == getNumberOfVariables() && !done){
+				done = true;
+				int seconds = LocalTime.now().toSecondOfDay() - start_time.toSecondOfDay();
+				try {
+					BufferedWriter writer = new BufferedWriter(new FileWriter(filename, true));
+					String time = Integer.toString((int) seconds/3600) + ":" + Integer.toString((int) seconds/60) + ":" + Integer.toString(seconds%60);
+					if(switched)
+						writer.write(String.join(",", time, Integer.toString(bestCpa.calcCost(getProblem())), Integer.toString(minExceed), Double.toString(gini_coef())));
+					else
+						writer.write(String.join(",", time, Integer.toString(bestCpa.calcCost(getProblem())), "0", Double.toString(gini_coef())));
+					writer.newLine();
+					writer.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
+	//	private synchronized void bad_output(String filename) {
+	//		synchronized(counterLock) {
+	//			if(!done) {
+	//				done = true;
+	//				try {
+	//					BufferedWriter writer = new BufferedWriter(new FileWriter(filename, true));
+	//					writer.write(String.join(",", "Time Out", "Infinity", "No Solution", "Zero"));
+	//					writer.newLine();
+	//					writer.close();
+	//				} catch (IOException e) {
+	//					e.printStackTrace();
+	//				}
+	//			}
+	//		}
+	//	}
+
+	private void clear() {
+		num_agents = 0;
+		first = false;
+	}
+
+	private double gini_coef() {
+		double coef = 0;
+		double mean = 0;
+		for(int i=0; i<num_agents; i++) {
+			mean += bestCpa.calcAddedCost(i, bestCpa.getAssignment(i), getProblem());
+		}
+		mean /= num_agents;
+		for(int i=0; i<num_agents; i++) {
+			for(int j=0; j<num_agents; j++) {
+				coef += Math.abs(bestCpa.calcAddedCost(i, bestCpa.getAssignment(i), getProblem()) - bestCpa.calcAddedCost(j, bestCpa.getAssignment(j), getProblem()));
+			}
+		}
+		coef /= 2*Math.pow(num_agents, 2)*mean;
+		return coef*100;
+	}
+
+	private int calculate_extra_courses() {
+		int extra_courses = 0;
+		for(String key: this.coursesAssignments.keySet()) {
+			if(this.coursesAssignments.get(key) > courseLimit) {
+				extra_courses += this.coursesAssignments.get(key) - courseLimit;
+			}
+		}
+		return extra_courses;
+	}
+
+	@Override
+	public void onMailBoxEmpty() {
+		if (getSystemTimeInTicks() >= it) {
+			update();
+			finish(bestCpa.getAssignment(getId()));
+			if(num_agents == getNumberOfVariables() && !done) {
+				synchronized(counterLock){
+					output(".\\DSA_Agent\\output_" + Integer.toString(num_agents) + "_dsa_agents_iter_" + Integer.toString(it) + ".csv");
+					clear();
+				}
+			}
+			return;
+		}
+
+		mapAssignments();
+
+
+		int calc_course = calculate_extra_courses();
+		if(bestCpa == null || checkAllAssignments() &&  cpa.calcCost(getProblem()) > bestCpa.calcCost(getProblem()) || calc_course < minExceed || calc_course == minExceed &&  cpa.calcCost(getProblem()) > bestCpa.calcCost(getProblem())) { // If all assignments are valid!
+			bestCpa = cpa.deepCopy();
+			minExceed = calc_course;
+		}
+
+		Set<Integer> currentDomain = new HashSet<Integer>(getDomain());
+
+		if(rnd.nextDouble() < p) {
+			int cost = cpa.calcAddedCost(getId(), getSubmitedCurrentAssignment(), getProblem());
+			while(!currentDomain.isEmpty()) {
+				int val = currentDomain.iterator().next();
+				currentDomain.remove(val);
+				int exceed = checkAssignmentValidity(getSubmitedCurrentAssignment(), val);
+				if (cpa.calcAddedCost(getId(), val, getProblem()) >= cost && exceed == minExceed || exceed < minExceed) {
+					bestVal = val;
+					cost = cpa.calcAddedCost(getId(), val, getProblem());
+					minExceed = exceed;
+				}
+			}
+			assignNewValue(bestVal);
+		}
+	}
+
+	private List<String[]> readCombinations(String csv) {
+		String line = "";  
+		String splitBy = ",";  
+		List<String[]> combinations = new ArrayList<>();
+		try   
+		{  
+			BufferedReader br = new BufferedReader(new FileReader(csv));  
+			while ((line = br.readLine()) != null) 
+			{  
+				combinations.add(line.split(splitBy));
+			}
+			br.close();
+		}   
+		catch (IOException e)   
+		{  
+			e.printStackTrace();  
+		}
+		return combinations;
+	}
+
+	private void assignNewValue(int val) {
+		int assign = -1;
+		try {
+			assign = getSubmitedCurrentAssignment();
+		}
+		catch(Exception e) {}
+		if(val != assign) {
+			cpa.assign(getId(), val);
+			submitCurrentAssignment(val);
+			broadcast("ASSIGNMENT", getId(), val);
+		}
+	}
+}
+
+
+
+
