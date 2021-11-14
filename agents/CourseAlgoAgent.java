@@ -20,8 +20,8 @@ import bgu.dcr.az.api.tools.*;
 @Algorithm(name = "CourseAlgo", useIdleDetector = false)
 public class CourseAlgoAgent extends SimpleAgent {
 
-	@Variable(name="it", defaultValue="100", description="number of iterations to perform")
-	private int it = 100;
+	@Variable(name="it", defaultValue="500", description="number of iterations to perform")
+	private int it = 500;
 
 	@Variable(name="p1", defaultValue="0.8", description="probability of value change if assignment is valid")
 	private double p1 = 0.8;
@@ -35,7 +35,6 @@ public class CourseAlgoAgent extends SimpleAgent {
 
 	private Random rnd = new Random();
 	private Assignment bestCpa;
-	private Assignment minCpa;
 	private Assignment cpa;
 
 	private static int minExceed;
@@ -74,7 +73,6 @@ public class CourseAlgoAgent extends SimpleAgent {
 			}
 		}
 		cpa = new Assignment();
-		minCpa = new Assignment();
 		assignNewValue(chooseAtRandom());
 	}
 
@@ -164,18 +162,6 @@ public class CourseAlgoAgent extends SimpleAgent {
 		}
 		return course_key;
 	}
-	
-//	private int checkMinAssignment() {
-//		int exceed = 0;
-//		for(int var: cpa.assignedVariables()) {
-//			for(String str: courseCombinations.get(cpa.getAssignment(var))) { 
-//				if(this.coursesAssignments.get(str) != null && this.coursesAssignments.get(str) >= this.courseLimit) {
-//					exceed += 1;
-//				}
-//			}
-//		}
-//		return exceed;
-//	}
 
 	/** ========================= Max - Beta ========================= */
 
@@ -187,7 +173,8 @@ public class CourseAlgoAgent extends SimpleAgent {
 				try {
 					BufferedWriter writer = new BufferedWriter(new FileWriter(filename, true));
 					String time = Integer.toString((int) seconds/3600) + ":" + Integer.toString((int) seconds/60) + ":" + Integer.toString(seconds%60);
-					writer.write(String.join(",", time, Integer.toString(bestCpa.calcCost(getProblem())), Integer.toString(minExceed), Double.toString(gini_coef())));
+					int exceed = Math.min(calculate_extra_courses(), minExceed);
+					writer.write(String.join(",", time, Integer.toString(bestCpa.calcCost(getProblem())), Integer.toString(exceed), Double.toString(gini_coef())));
 					writer.newLine();
 					writer.close();
 				} catch (IOException e) {
@@ -243,18 +230,36 @@ public class CourseAlgoAgent extends SimpleAgent {
 		}
 		return extra_courses;
 	}
+	
+	private int checkAssignmentValidity(int old_val, int new_val) {
+		for(String str: courseCombinations.get(old_val)) {
+			this.coursesAssignments.put(str, this.coursesAssignments.get(str)-1);
+		}
+		for(String str: courseCombinations.get(new_val)) { 
+			if(this.coursesAssignments.get(str) != null)
+				this.coursesAssignments.put(str, this.coursesAssignments.get(str)+1);
+			else
+				this.coursesAssignments.put(str, 1);
+		}
+		int extra_courses = calculate_extra_courses();
+		
+		for(String str: courseCombinations.get(new_val)) {
+			this.coursesAssignments.put(str, this.coursesAssignments.get(str));
+		}
+		for(String str: courseCombinations.get(old_val)) { 
+			this.coursesAssignments.put(str, this.coursesAssignments.get(str));
+		}
+		return extra_courses;
+	}
 
 	@Override
 	public void onMailBoxEmpty() {
-
 		if (getSystemTimeInTicks() >= it) {
-			if(bestCpa == null)
-				bestCpa = minCpa.deepCopy();
 			update();
 			finish(bestCpa.getAssignment(getId()));
 			if(num_agents == getNumberOfVariables() && !done) {
 				synchronized(counterLock){
-					output("output_ " + Integer.toString(num_agents) + "_course_agents.csv");
+					output(".\\Course_Agent\\output_" + Integer.toString(num_agents) + "_course_agents_iter_" + Integer.toString(it) + ".csv");
 					clear();
 				}
 			}
@@ -270,23 +275,16 @@ public class CourseAlgoAgent extends SimpleAgent {
 			beta_key = checkSelfAssignment(assign); 
 		}
 		catch(Exception e) {}
-
+		
+		int calc_course = calculate_extra_courses();
 		if(!beta_key.equals("")) {
 			flag = true;
 			p2 = (double) (this.coursesAssignments.get(beta_key)-this.courseLimit) / this.coursesAssignments.get(beta_key); 
 		}
 
-		else if(checkAllAssignments()) {
-			if(bestCpa == null || cpa.calcCost(getProblem()) > bestCpa.calcCost(getProblem())) {
-				bestCpa = cpa.deepCopy();
-			}
-		}
-		
-		if(minCpa == null || calculate_extra_courses() <= minExceed) {
-			if(cpa.calcCost(getProblem()) > minCpa.calcCost(getProblem())) {
-				minCpa = cpa.deepCopy();
-				minExceed = calculate_extra_courses();
-			}
+		if(bestCpa == null || checkAllAssignments() && cpa.calcCost(getProblem()) > bestCpa.calcCost(getProblem()) || calc_course < minExceed || cpa.calcCost(getProblem()) > bestCpa.calcCost(getProblem()) && calc_course == minExceed) {
+			bestCpa = cpa.deepCopy();
+			minExceed = calculate_extra_courses();
 		}
 
 		Set<Integer> currentDomain = new HashSet<Integer>(getDomain());
@@ -295,7 +293,7 @@ public class CourseAlgoAgent extends SimpleAgent {
 			int cost = -1;
 			int values = 0;
 			for(int val: coursesAssignments.values()) {
-				if(val <= courseLimit)
+				if(val < courseLimit)
 					values += 1;
 			}
 			if(values >= courseCombinations.get(0).length) {
@@ -303,9 +301,11 @@ public class CourseAlgoAgent extends SimpleAgent {
 				while(!currentDomain.isEmpty()) {
 					int val = currentDomain.iterator().next();
 					currentDomain.remove(val);
-					if (cpa.calcAddedCost(getId(), val, getProblem()) > cost && checkSelfAssignment(val).equals("")) {
+					int exceed = checkAssignmentValidity(getSubmitedCurrentAssignment(), val);
+					if (cpa.calcAddedCost(getId(), val, getProblem()) >= cost && exceed == minExceed || exceed < minExceed) {
 						bestVal = val;
 						cost = cpa.calcAddedCost(getId(), val, getProblem());
+						minExceed = exceed;
 					}
 				}
 				assignNewValue(bestVal);
@@ -315,7 +315,7 @@ public class CourseAlgoAgent extends SimpleAgent {
 				while(!currentDomain.isEmpty()) {
 					int val = currentDomain.iterator().next();
 					currentDomain.remove(val);
-					if (cpa.calcAddedCost(getId(), val, getProblem()) > cost) {
+					if (cpa.calcAddedCost(getId(), val, getProblem()) >= cost) {
 						bestVal = val;
 						cost = cpa.calcAddedCost(getId(), val, getProblem());
 					}
@@ -323,15 +323,16 @@ public class CourseAlgoAgent extends SimpleAgent {
 				assignNewValue(bestVal);
 			}
 		}
-
 		else if(!flag && rnd.nextDouble() < p1) {
 			int cost = cpa.calcAddedCost(getId(), getSubmitedCurrentAssignment(), getProblem());
 			while(!currentDomain.isEmpty()) {
 				int val = currentDomain.iterator().next();
 				currentDomain.remove(val);
-				if (cpa.calcAddedCost(getId(), val, getProblem()) > cost && checkSelfAssignment(val).equals("")) {	
+				int exceed = checkAssignmentValidity(getSubmitedCurrentAssignment(), val);
+				if (cpa.calcAddedCost(getId(), val, getProblem()) >= cost && exceed == minExceed || exceed < minExceed) {
 					bestVal = val;
 					cost = cpa.calcAddedCost(getId(), val, getProblem());
+					minExceed = exceed;
 				}
 			}
 			assignNewValue(bestVal);
