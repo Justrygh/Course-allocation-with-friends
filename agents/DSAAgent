@@ -229,16 +229,16 @@ public class DSAAgent extends SimpleAgent {
 
 		Set<Integer> currentDomain = new HashSet<Integer>(getDomain());
 
-		if(rnd.nextDouble() < p) {
-			int cost = cpa.calcAddedCost(getId(), getSubmitedCurrentAssignment(), getProblem());
+		if(rnd.nextDouble() < p) { 
+			int cost = cpa.calcAddedCost(getId(), getSubmitedCurrentAssignment(), getProblem()); // Need to add here exceed with current value
 			while(!currentDomain.isEmpty()) {
 				int val = currentDomain.iterator().next();
 				currentDomain.remove(val);
 				int exceed = checkAssignmentValidity(getSubmitedCurrentAssignment(), val);
-				if (cpa.calcAddedCost(getId(), val, getProblem()) >= cost && exceed == minExceed || exceed < minExceed) {
-					bestVal = val;
+				if (cpa.calcAddedCost(getId(), val, getProblem()) >= cost && exceed == minExceed || exceed < minExceed) { // Edit here - compare with exceed with old Value not minExceed
+					bestVal = val; 
 					cost = cpa.calcAddedCost(getId(), val, getProblem());
-					minExceed = exceed;
+					minExceed = exceed; // exceed with old value = new exceed 
 				}
 			}
 			assignNewValue(bestVal);
