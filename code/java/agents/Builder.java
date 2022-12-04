@@ -71,34 +71,28 @@ public class Builder {
 	public double gini_coef(Assignment cpa) {
 		double coef = 0;
 		double mean = 0;
-		for(int i=0; i<p.getNumberOfVariables(); i++) {
-			mean += cpa.calcAddedCost(i, cpa.getAssignment(i), p);
-		}
-		mean /= p.getNumberOfVariables();
+		mean = (double) calculateTotalCost(cpa) / cpa.assignedVariables();
 
-		for(int i=0; i<p.getNumberOfVariables(); i++) {
-			for(int j=0; j<p.getNumberOfVariables(); j++) {
-				coef += Math.abs(cpa.calcAddedCost(i, cpa.getAssignment(i), p) - cpa.calcAddedCost(j, cpa.getAssignment(j), p));
+		for(int i=0; i<cpa.assignedVariables(); i++) {
+			for(int j=0; j<cpa.assignedVariables(); j++) {
+				coef += Math.abs(calculateAgentCost(cpa, i, cpa.getAssignment(i)) - calculateAgentCost(cpa, j, cpa.getAssignment(j)));
 			}
 		}
-		coef /= 2*Math.pow(p.getNumberOfVariables(), 2)*mean;
+		coef /= 2*Math.pow(cpa.assignedVariables(), 2)*mean;
 		return coef*100;
 	}
 
 	public double gini_coef_unary(Assignment cpa) {
 		double coef = 0;
 		double mean = 0;
-		for(int i=0; i<p.getNumberOfVariables(); i++) {
-			mean += p.getConstraintCost(i, cpa.getAssignment(i));
-		}
-		mean /= p.getNumberOfVariables();
+		mean = (double) calculateTotalCostUnary(cpa) / cpa.assignedVariables();
 
-		for(int i=0; i<p.getNumberOfVariables(); i++) {
-			for(int j=0; j<p.getNumberOfVariables(); j++) {
-				coef += Math.abs(p.getConstraintCost(i, cpa.getAssignment(i)) - p.getConstraintCost(j, cpa.getAssignment(j)));
+		for(int i=0; i<cpa.assignedVariables(); i++) {
+			for(int j=0; j<cpa.assignedVariables(); j++) {
+				coef += Math.abs(calculateUnary(i, convertDomain2Courses(cpa.getAssignment(i))) - calculateUnary(j, convertDomain2Courses(cpa.getAssignment(j))));
 			}
 		}
-		coef /= 2*Math.pow(p.getNumberOfVariables(), 2)*mean;
+		coef /= 2*Math.pow(cpa.assignedVariables(), 2)*mean;
 		return coef*100;
 	}
 
