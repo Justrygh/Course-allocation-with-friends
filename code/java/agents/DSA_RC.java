@@ -122,22 +122,18 @@ public class DSA_RC extends SimpleAgent {
 		/** Caluculate beta */
 		if(!beta_key.equals("")) {
 			flag = true;
-			//System.out.println("Mone: " + Integer.toString(this.coursesAssignments.get(beta_key)-this.courseLimit) + ", Mahane : " + this.coursesAssignments.get(beta_key));
 			beta = (double) (this.coursesAssignments.get(beta_key)-this.courseLimit) / this.coursesAssignments.get(beta_key);
 		}
 
 		/** Anytime */
 		int calc_course = builder.calculate_extra_courses(coursesAssignments);
 		if(bestCpa == null || calc_course < builder.getExtraCourses() || (calc_course ==  builder.getExtraCourses() && cpa.calcCost(getProblem()) > bestCpa.calcCost(getProblem()))) { 
-			//System.out.println(Integer.toString(cpa.calcCost(getProblem())));
 			bestCpa = cpa.deepCopy();
 			builder.setExtraCourses(calc_course);
 		}
 
 		double rand = builder.getRandom();
-		//System.out.println("Flag: " + flag + ", Tick: " + Long.toString(getSystemTimeInTicks()) + ", Random: " + rand + "Boolean: " + (rand < beta) + ", Beta: " + beta);
 		if(flag && rand < beta) {
-			//System.out.println("ID: " + Integer.toString(getId()) + ", You forced me to change my value: " + beta_key + " - Beta: " + Double.toString(beta));
 			int cost = -1;
 			int values = 0;
 			for(int val: coursesAssignments.values()) {

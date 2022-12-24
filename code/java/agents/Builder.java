@@ -20,7 +20,7 @@ import bgu.dcr.az.api.tools.*;
 
 public class Builder {
 
-	private int numCourses = 3;
+	private HashMap<String, Integer> problemParams = new HashMap<>();
 
 	/** Assignment variables */
 	private ImmutableProblem p;
@@ -171,8 +171,11 @@ public class Builder {
 	}
 
 	public void output(String experiment, Assignment cpa) {
-		String filename = ".\\"+experiment+"_Agent\\" + Integer.toString(p.getNumberOfVariables()) + "agents.csv";
-//		String filename = ".\\"+experiment+"_Agent\\" + Integer.toString(courseLimit) + "courseLimit.csv";
+		String filename = ".\\"+experiment+"_Agent\\";
+		if(problemParams.get("problemDefinition") == 0)
+			filename += Integer.toString(p.getNumberOfVariables()) + "agents_" + Integer.toString(problemParams.get("weight")) + "weight.csv";
+		else
+			filename += Integer.toString(courseLimit) + "courseLimit_" + Integer.toString(problemParams.get("weight")) + "weight.csv";
 		synchronized(counterLock) {
 			if(getAgents() == p.getNumberOfVariables() && !done) {
 				done = true;
@@ -206,7 +209,7 @@ public class Builder {
 	}
 
 	private int[] convertDomain2Courses(int domain) {
-		int[] courses = new int[numCourses];
+		int[] courses = new int[problemParams.get("numCourses")];
 		int index = 0;
 		for(String str: courseCombinations.get(domain)) {
 			int course_number = Character.getNumericValue(str.charAt(1))-1;
@@ -357,7 +360,6 @@ public class Builder {
 			{  
 				String[] ratings = line.split(splitBy); 
 				if(!first) {
-					//this.n = ratings.length;
 					friendsRating = new int[n][n];
 					first = true;
 				}
@@ -375,6 +377,26 @@ public class Builder {
 			e.printStackTrace();  
 		}
 		return friendsRating;
+	}
+
+	private void readParams(String text) {
+		String line = "";
+		String splitBy = ",";
+		String keyValue = "=";
+		try
+		{
+			BufferedReader br = new BufferedReader(new FileReader(csv));
+			String[] params = br.readLine().split(splitBy);
+			for(String arg: params){
+				String[] values = arg.split(keyValue);
+				problemParams.put(values[0], Integer.parseInt(values[1]);
+			}
+			br.close();
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
 	}
 
 

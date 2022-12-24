@@ -40,6 +40,9 @@ public class FirstModel extends AbstractProblemGenerator {
 	@Variable(name = "w", description = "weight of friendship", defaultValue = "2")
 	int w = 2;
 
+	@Variable(name = "x", description = "problem definition (0=simulated, 1=user-study)", defaultValue = "0")
+	int x = 0;
+
 	int d = 6;
 
 	// number of friends
@@ -220,8 +223,11 @@ public class FirstModel extends AbstractProblemGenerator {
 	}
 
 	private List<int[]> defineProblem() {
-		readFriendship("friendship.csv");
-		readCourses("courses.csv");
+		String friendship_csv = "friendship.csv" if x == 0 else "friendship" + Integer.toString(w) + ".csv"
+		String courses_csv = "courses.csv" if x == 0 else "courses" + Integer.toString(w) + ".csv"
+
+		readFriendship(friendship_csv);
+		readCourses(courses_csv);
 		
 		// initiate swapping
 		if(friendsRating.length == coursesRating.length)
@@ -270,7 +276,6 @@ public class FirstModel extends AbstractProblemGenerator {
 		for(int i=0; i<n; i++) {
 			for(int j=0; j<combinations.size(); j++) {
 				int price = calculateUnary(i, combinations.get(j));
-				//				System.out.println("ID: " + Integer.toString(i) + ", Assignment: " + Integer.toString(j) + ", Price: " + Integer.toString(price));
 				p.setConstraintCost(i, i, j, price);
 			}
 		}
@@ -393,6 +398,17 @@ public class FirstModel extends AbstractProblemGenerator {
 		return ratings;
 	}
 
+	private void writeParams(String filename, String params) {
+		try {
+			BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
+			writer.write(params);
+			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	@Override
 	public void generate(Problem p, Random rand) {
 		//FIRST INITIALIZE THE PROBLEM LIKE THIS:
@@ -406,7 +422,11 @@ public class FirstModel extends AbstractProblemGenerator {
 		//A PROBLEM IF IT IS REQUESTED TO DO SO
 
 		// Uncomment the line below to Generate problem using the simulated data set attached
-		// generate_problem(pick_random_agents(n, s, rand), "courses.txt", rand);
+		if(x == 0)
+			generate_problem(pick_random_agents(n, s, rand), "courses.txt", rand);
+
+		String params = "numCourses=" + Integer.toString(c) + ",problemDefinition=" + Integer.toString(x) + ",weight=" + Integer.toString(w);
+		writeParams("Parameters.txt", params);
 
 		List<int[]> combinations = defineProblem();
 		p.initialize(ProblemType.DCOP, n, d);
@@ -431,13 +451,6 @@ public class FirstModel extends AbstractProblemGenerator {
 	 * - p1 = Probability of constraint between two variables
 	 * - p2 = Probability of conflict between two constraint variables 
 	 * 
-	 */
-
-	/**
-	 * Notes:
-	 * - Convert the problem to Max.
-	 * - Deploy DSA algorithm Max. using checkCourseLimit function 
-	 * - Add courseLimit as problem parameter.
 	 */
 }
 
