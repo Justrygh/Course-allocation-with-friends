@@ -1,5 +1,5 @@
 <experiment>
-    <sync-test name="Binary - Course Limit = 30" seed="1" repeat-count="50" run-var="n" start="40" end="90" tick-size="5">
+    <sync-test name="Binary - Course Limit = 30" repeat-count="50" run-var="n" start="40" end="90" tick-size="5">
 	<!-- Course Limit = 30 -->
         <algorithm name="DSA">
             <assign var="courseLimit" val="30"/>
