@@ -81,20 +81,6 @@ public class Builder {
 		return coef*100;
 	}
 
-	public double gini_coef_unary(Assignment cpa) {
-		double coef = 0;
-		double mean = 0;
-		mean = (double) calculateTotalCostUnary(cpa) / cpa.assignedVariables();
-
-		for(int i=0; i<cpa.assignedVariables(); i++) {
-			for(int j=0; j<cpa.assignedVariables(); j++) {
-				coef += Math.abs(calculateUnary(i, convertDomain2Courses(cpa.getAssignment(i))) - calculateUnary(j, convertDomain2Courses(cpa.getAssignment(j))));
-			}
-		}
-		coef /= 2*Math.pow(cpa.assignedVariables(), 2)*mean;
-		return coef*100;
-	}
-
 	public int calculate_extra_courses(HashMap<String, Integer> coursesAssignments) {
 		int extra_courses = 0;
 		for(String key: coursesAssignments.keySet()) {
@@ -209,42 +195,6 @@ public class Builder {
 		return Integer.toString(calculateAgentCost(cpa, 0, cpa.getAssignment(0))) + "," + Integer.toString(calculateAgentCost(cpa, mid_agent, cpa.getAssignment(mid_agent))) + "," + Integer.toString(calculateAgentCost(cpa, last_agent, cpa.getAssignment(last_agent)));
 	}
 
-	/** TO BE REMOVED */
-	private String to_String_Unary(Assignment cpa) {
-		int mid_agent = cpa.getNumberOfAssignedVariables()/2;
-		int last_agent = cpa.getNumberOfAssignedVariables() - 1;
-		return Integer.toString(calculateUnary(0, convertDomain2Courses(cpa.getAssignment(0)))) + "," + Integer.toString(calculateUnary(mid_agent, convertDomain2Courses(cpa.getAssignment(mid_agent)))) + "," + Integer.toString(calculateUnary(last_agent, convertDomain2Courses(cpa.getAssignment(last_agent))));
-	}
-
-	/** TO BE REMOVED */
-	private int calculateTotalCostUnary(Assignment cpa) {
-		int cost=0;
-		for(int i: cpa.assignedVariables()) {
-			cost += calculateUnary(i, convertDomain2Courses(cpa.getAssignment(i)));
-		}
-		return cost;
-	}
-
-    /** TO BE REMOVED */
-	public void outputUnary(String experiment, Assignment cpa) {
-		String filename = ".\\"+experiment+"_Agent\\" + Integer.toString(p.getNumberOfVariables()) + "agents.csv";
-// 		String filename = ".\\"+experiment+"_Agent\\" + Integer.toString(courseLimit) + "courseLimit.csv";
-		synchronized(counterLock) {
-			if(getAgents() == p.getNumberOfVariables() && !done) {
-				done = true;
-				try {
-					BufferedWriter writer = new BufferedWriter(new FileWriter(filename, true));
-					writer.write(String.join(",", Integer.toString(calculateTotalCostUnary(cpa)), Integer.toString(getExtraCourses()), Double.toString(gini_coef(cpa)), Integer.toString(calc_friends(cpa)), to_String_Unary(cpa)));
-					writer.newLine();
-					writer.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				clear();
-			}
-		}
-	}
-
 	public int checkMinAssignment(int new_val, HashMap<String, Integer> coursesAssignments) {
 		int exceed = 0;
 		for(String str: courseCombinations.get(new_val)) { 
@@ -326,45 +276,6 @@ public class Builder {
 		//insert_cost(id, cost);
 		return bestVal;
 	}
-
-    /** TO BE REMOVED */
-	public int find_max_value_unary(Set<Integer> domain, HashMap<String, Integer> coursesAssignments, Assignment cpa, int id) {
-		Set<Integer> currentDomain = new HashSet<Integer>(domain);
-		int bestVal = -1;
-		int cost = -1;
-		int oldVal = -1;
-		try {
-			oldVal = cpa.getAssignment(id);
-		}
-		catch(Exception e) {
-			oldVal = -1;
-		}
-		while(!currentDomain.isEmpty()) {
-			int val = currentDomain.iterator().next();
-			currentDomain.remove(val);
-			if (calculateUnary(id, convertDomain2Courses(val)) > cost && checkNewAssignment(oldVal, val, coursesAssignments).equals("")) {	
-				bestVal = val;
-				cost = calculateUnary(id, convertDomain2Courses(val));
-			}
-		}
-		if(bestVal == -1) {
-			currentDomain = new HashSet<Integer>(domain);
-			int exceed = Integer.MAX_VALUE;
-			while(!currentDomain.isEmpty()) {
-				int val = currentDomain.iterator().next();
-				currentDomain.remove(val);
-				int min = checkMinAssignment(val, coursesAssignments);
-				if ((calculateUnary(id, convertDomain2Courses(val)) >= cost && min <= exceed) || min < exceed) {	
-					bestVal = val;
-					cost = calculateUnary(id, convertDomain2Courses(val));
-					exceed = min;
-				}
-			}
-		}
-		//insert_cost(id, cost);
-		return bestVal;
-	}
-
 
 	public List<String[]> readCombinations(String csv) {
 		String line = "";  
