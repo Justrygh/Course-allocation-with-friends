@@ -224,7 +224,7 @@ public class FirstModel extends AbstractProblemGenerator {
 
 	private List<int[]> defineProblem() {
 		String friendship_csv = "friendship.csv" if x == 0 else "friendship" + Integer.toString(w) + ".csv"
-		String courses_csv = "courses.csv" if x == 0 else "courses" + Integer.toString(w) + ".csv"
+		String courses_csv = "courses.csv"
 
 		readFriendship(friendship_csv);
 		readCourses(courses_csv);
