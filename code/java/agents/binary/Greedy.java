@@ -44,10 +44,11 @@ public class Greedy extends SimpleAgent {
 		while(!currentDomain.isEmpty()) {
 			int val = currentDomain.iterator().next();
 			currentDomain.remove(val);
-			if (getProblem().getConstraintCost(getId(), val) > cost) {	
-				bestVal = val;
-				cost = getProblem().getConstraintCost(getId(), val);
-			}
+			int new_cost = builder.calculateAgentCost(cpa, getId(), val);
+            if (new_cost > cost) {
+                bestVal = val;
+                cost = new_cost;
+            }
 		}
 		return bestVal;
 	}

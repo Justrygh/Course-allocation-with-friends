@@ -21,7 +21,6 @@ import bgu.dcr.az.api.tools.*;
 public class Builder {
 
 	private int numCourses = 3;
-	private int numAgents = 177;
 
 	/** Assignment variables */
 	private ImmutableProblem p;
@@ -209,13 +208,15 @@ public class Builder {
 		int last_agent = cpa.getNumberOfAssignedVariables() - 1;
 		return Integer.toString(calculateAgentCost(cpa, 0, cpa.getAssignment(0))) + "," + Integer.toString(calculateAgentCost(cpa, mid_agent, cpa.getAssignment(mid_agent))) + "," + Integer.toString(calculateAgentCost(cpa, last_agent, cpa.getAssignment(last_agent)));
 	}
-	
+
+	/** TO BE REMOVED */
 	private String to_String_Unary(Assignment cpa) {
 		int mid_agent = cpa.getNumberOfAssignedVariables()/2;
 		int last_agent = cpa.getNumberOfAssignedVariables() - 1;
 		return Integer.toString(calculateUnary(0, convertDomain2Courses(cpa.getAssignment(0)))) + "," + Integer.toString(calculateUnary(mid_agent, convertDomain2Courses(cpa.getAssignment(mid_agent)))) + "," + Integer.toString(calculateUnary(last_agent, convertDomain2Courses(cpa.getAssignment(last_agent))));
 	}
-	
+
+	/** TO BE REMOVED */
 	private int calculateTotalCostUnary(Assignment cpa) {
 		int cost=0;
 		for(int i: cpa.assignedVariables()) {
@@ -224,6 +225,7 @@ public class Builder {
 		return cost;
 	}
 
+    /** TO BE REMOVED */
 	public void outputUnary(String experiment, Assignment cpa) {
 		String filename = ".\\"+experiment+"_Agent\\" + Integer.toString(p.getNumberOfVariables()) + "agents.csv";
 // 		String filename = ".\\"+experiment+"_Agent\\" + Integer.toString(courseLimit) + "courseLimit.csv";
@@ -325,6 +327,7 @@ public class Builder {
 		return bestVal;
 	}
 
+    /** TO BE REMOVED */
 	public int find_max_value_unary(Set<Integer> domain, HashMap<String, Integer> coursesAssignments, Assignment cpa, int id) {
 		Set<Integer> currentDomain = new HashSet<Integer>(domain);
 		int bestVal = -1;
@@ -410,7 +413,7 @@ public class Builder {
 				String[] ratings = line.split(splitBy); // 9,2,3,5,8,7,1,4,6
 				if(!first) {
 					c_len = ratings.length;
-					coursesRatings = new int[numAgents][c_len];
+					coursesRatings = new int[p.getNumberOfVariables()][c_len];
 					first = true;
 				}
 				else {

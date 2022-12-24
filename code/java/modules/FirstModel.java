@@ -37,6 +37,9 @@ public class FirstModel extends AbstractProblemGenerator {
 	@Variable(name = "s", description = "number of students", defaultValue = "146")
 	int s = 146;
 
+	@Variable(name = "w", description = "weight of friendship", defaultValue = "2")
+	int w = 2;
+
 	int d = 6;
 
 	// number of friends
@@ -369,7 +372,7 @@ public class FirstModel extends AbstractProblemGenerator {
 			index = 0;
 			for(int j=0; j<friends_csv.length; j++) {
 				if(friends.contains(j)) {
-					friends_csv[j] = Integer.toString(friends_rating.get(index++)*2);
+					friends_csv[j] = Integer.toString(friends_rating.get(index++) * w);
 				}
 				else {
 					friends_csv[j] = "0";

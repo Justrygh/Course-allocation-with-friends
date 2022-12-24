@@ -32,9 +32,6 @@ public class DSA extends SimpleAgent {
 
 	private Assignment bestCpa;
 	private Assignment cpa;
-	
-	private static int[] avg_utilities;
-	private static int[] avg_iterations;
 
 	private HashMap<String, Integer> coursesAssignments; 
 	private static Builder builder;
@@ -43,8 +40,6 @@ public class DSA extends SimpleAgent {
 	public void start() {
 		if(builder == null) {
 			builder = new Builder(getProblem(), courseLimit);
-			avg_utilities = new int[3];
-			avg_iterations = new int[3];
 		}
 		
 		cpa = new Assignment();
@@ -68,7 +63,6 @@ public class DSA extends SimpleAgent {
 //				builder.setExtraCourses(builder.calculate_extra_courses(builder.mapAssignments(cpa))); // Uncomment this if any-time algorithm is down
 				builder.output("DSA", bestCpa);
 				builder = null;
-				reset();
 			}
 			return;
 		}
@@ -86,11 +80,6 @@ public class DSA extends SimpleAgent {
 		if(builder.getRandom() < p) {
 			assignNewValue(builder.find_max_value(getDomain(), coursesAssignments, cpa, getId()));
 		}
-	}
-	
-	private void reset() {
-		avg_iterations = null;
-		avg_utilities = null;
 	}
 
 	private void assignNewValue(int val) {

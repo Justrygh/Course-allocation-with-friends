@@ -34,27 +34,17 @@ public class DSA_RC extends SimpleAgent {
 	private static Assignment bestCpa;
 	private Assignment cpa;
 
-	private static String[] debug;
-	private static int[] avg_utilities;
-	private static int[] avg_iterations;
-
 	private HashMap<String, Integer> coursesAssignments; 
 	private static Builder builder;
-	
-	private static Object lock = new Object();
 
 	@Override
-	public synchronized void start() {
-		synchronized(lock) {
+	public void start() {
 		if(builder == null) {
 			builder = new Builder(getProblem(), courseLimit);
-			avg_utilities = new int[3];
-			avg_iterations = new int[3];
 		}
 		cpa = new Assignment();
 		int rand = builder.chooseAtRandom(getDomainSize());
 		assignNewValue(rand);
-		}
 	}
 
 
@@ -103,14 +93,13 @@ public class DSA_RC extends SimpleAgent {
 	/** ========================= Max - Beta ========================= */
 
 	@Override
-	public synchronized void onMailBoxEmpty() {
+	public void onMailBoxEmpty() {
 		if (getSystemTimeInTicks() >= it) {
 			builder.update();
 			finish(getSubmitedCurrentAssignment());
 			if(builder.getAgents() == getNumberOfVariables()) {
 				builder.output("DSA_RC", bestCpa);
 				builder = null;
-				reset();
 			}
 			return;
 		}
@@ -120,8 +109,6 @@ public class DSA_RC extends SimpleAgent {
 
 		boolean flag = false;
 		int bestVal = 0;
-
-		synchronized(lock) {
 
 		coursesAssignments = builder.mapAssignments(cpa);
 		//printAssignments();
@@ -165,9 +152,10 @@ public class DSA_RC extends SimpleAgent {
 				while(!currentDomain.isEmpty()) {
 					int val = currentDomain.iterator().next();
 					currentDomain.remove(val);
-					if (builder.calculateAgentCost(cpa, getId(), val) > cost) {
+					int new_cost = builder.calculateAgentCost(cpa, getId(), val);
+					if (new_cost > cost) {
 						bestVal = val;
-						cost = builder.calculateAgentCost(cpa, getId(), val);
+						cost = new_cost;
 					}
 				}
 				assignNewValue(bestVal);
@@ -176,15 +164,9 @@ public class DSA_RC extends SimpleAgent {
 		else if(!flag && rand < alpha) {
 			assignNewValue(builder.find_max_value(getDomain(), coursesAssignments, cpa, getId()));
 		}
-		}
-	}
-	
-	private void reset() {
-		avg_iterations = null;
-		avg_utilities = null;
 	}
 
-	private synchronized void assignNewValue(int val) {
+	private void assignNewValue(int val) {
 		cpa.assign(getId(), val);
 		submitCurrentAssignment(val); 
 		broadcast("ASSIGNMENT", getId(), val);
