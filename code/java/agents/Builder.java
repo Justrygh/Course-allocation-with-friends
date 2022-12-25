@@ -150,9 +150,8 @@ public class Builder {
 	public int calc_friends(Assignment cpa) {
 		int friends = 0;
 		for(int i: cpa.assignedVariables()) {
-			for(int j: cpa.assignedVariables()) {
-				if(i != j)
-					friends += intersection_courses(courseCombinations.get(cpa.getAssignment(i)), courseCombinations.get(cpa.getAssignment(j)));
+			for(int j: p.getNeighbors(i)) {
+				friends += intersection_courses(courseCombinations.get(cpa.getAssignment(i)), courseCombinations.get(cpa.getAssignment(j)));
 			}
 		}
 		return friends;
