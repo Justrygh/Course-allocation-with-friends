@@ -49,6 +49,7 @@ public class Builder {
 
 		coursesRating = readCourses("courses_swap.csv");
 		friendsRating = readFriendship("friendship_swap.csv");
+		problemParams = readParams("Parameters.txt");
 	}
 
 	public int chooseAtRandom(int limit) {
@@ -379,17 +380,18 @@ public class Builder {
 		return friendsRating;
 	}
 
-	private void readParams(String text) {
+	private HashMap<String, Integer> readParams(String text) {
 		String line = "";
 		String splitBy = ",";
 		String keyValue = "=";
+		HashMap<String, Integer> problemParamsMap = new HashMap<>();
 		try
 		{
 			BufferedReader br = new BufferedReader(new FileReader(text));
 			String[] params = br.readLine().split(splitBy);
 			for(String arg: params){
 				String[] values = arg.split(keyValue);
-				problemParams.put(values[0], Integer.parseInt(values[1]));
+				problemParamsMap.put(values[0], Integer.parseInt(values[1]));
 			}
 			br.close();
 		}
@@ -397,6 +399,7 @@ public class Builder {
 		{
 			e.printStackTrace();
 		}
+		return problemParamsMap;
 	}
 
 
