@@ -106,7 +106,7 @@ List of agents available:
 - **Random**
 
 Make sure to create the following directories in the java project (for each agent used in the problem):
-- e.g., *Iterative_Agent* or *Iterative_Unary_Agent* (Depends on the use)
+- e.g., *Iterative_Agent*
 
 The experiment will output csv files for each agent based on the test.xml file.
 The CSV files contains the following headers (descending order):
