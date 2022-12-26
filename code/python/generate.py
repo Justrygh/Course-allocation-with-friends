@@ -1,4 +1,5 @@
 import collections
+import datetime
 import glob
 import os
 import re
@@ -26,7 +27,7 @@ from distutils.dir_util import copy_tree
 students_index = {}
 
 
-def create_friendship_csv(df: pd.DataFrame) -> pd.DataFrame:
+def create_friendship_csv(df: pd.DataFrame, weight: int) -> pd.DataFrame:
     index_students(df.get('Name'))
     friends_matrix = [[0 for _ in range(df.shape[0])] for _ in range(df.shape[0])]
 
@@ -34,7 +35,7 @@ def create_friendship_csv(df: pd.DataFrame) -> pd.DataFrame:
     friendships = df[['F1', 'F2', 'F3']]
     for row in friendships.values:
         for i in range(len(row)):
-            friends_matrix[index][int(students_index.get(row[i]))] = (len(row) - i) * 2
+            friends_matrix[index][int(students_index.get(row[i]))] = (len(row) - i) * weight
         index += 1
     return pd.DataFrame(friends_matrix, columns=[f'a{i+1}' for i in range(len(friends_matrix))])
 
@@ -134,6 +135,11 @@ class Graph:
 ########################################
 
 
+weights = set()
+experiment_index = set()
+
+algorithms = ["DSA_RC", "DSA", "Greedy", "RSD", "HBS", "Random"]
+groups = [["DSA_RC", "RSD", "HBS"], ["DSA", "Greedy", "Random"]]
 fieldnames = ["utility", "courses", "gini", "friends", "first_agent", "mid_agent", "last_agent"]
 markers = {"DSA_RC": 'D', "DSA": 'P', "Greedy": 'o', "RSD": 's', "HBS": 'X', "Random": "H"}
 colors = {"DSA_RC": 'blue', "DSA": 'brown', "Greedy": 'green', "RSD": 'orange', "HBS": 'purple', "Random": 'red'}
@@ -145,7 +151,7 @@ descriptions = {
     "friends": "Number of friends shared among the courses",
     "first_agent": "First agent utility",
     "mid_agent": "Middle agent utility",
-    "last_agent": "Last agent utility"
+    "last_agent": "Last agent utility",
 }
 
 
@@ -171,6 +177,8 @@ def create_dataframes(column: str = 'agents'):
 
             filename = os.path.basename(file)
             agents = filename[:filename.find(column)]
+            # add the agents to the experiment index
+            experiment_index.add(int(agents))
 
             averages = dict.fromkeys(exp_df.columns)
             df = pd.read_csv(os.path.join(dir, file), names=exp_df.columns)
@@ -232,6 +240,71 @@ def plot_graphs_binary(experiments: dict, column: str = 'agents'):
         generate_graph(ax=ax, fieldname=col, column=column, path=f'Results/{column[0].upper() + column[1:]}/Friendship/Included/{col}_fig')
 
 
+def plot_utility_graph(combined_experiments: dict, column: str = 'courseLimit'):
+    for exp in combined_experiments:
+        for weight in combined_experiments.get(exp):
+            ax = sns.lineplot(data=combined_experiments.get(exp).get(weight).get_dataframe(), x=column, y='utility',
+                              marker=markers.get(exp), markersize=8, label=f'{exp}{weight}')
+
+        generate_graph(ax=ax, fieldname='utility', column=column, path=f'Results/{column[0].upper() + column[1:]}/Combined/Total/{exp}_fig')
+
+    group_index = 1
+    for group in groups:
+        for exp in group:
+            for weight in combined_experiments.get(exp):
+                ax = sns.lineplot(data=combined_experiments.get(exp).get(weight).get_dataframe(), x=column, y='utility',
+                                  marker=markers.get(exp), markersize=8, label=exp if weight == 'x0' else None, color=colors.get(exp))
+
+        generate_graph(ax=ax, fieldname='utility', column=column, path=f'Results/{column[0].upper() + column[1:]}/Combined/Total/Group-{group_index}')
+        group_index += 1
+
+
+def plot_combined_graphs(combined_experiments: dict, column: str = 'courseLimit'):
+    for index in experiment_index:
+        for col in fieldnames:
+            exp_df = {g: [] for g in algorithms}
+            for exp in algorithms:
+                for weight in combined_experiments.get(exp):
+                    df = combined_experiments.get(exp).get(weight).get_dataframe()
+                    # find the row that matches the query
+                    row = df.loc[df[column] == f'{index}'][col].values[0]
+                    exp_df[exp].append(row)
+
+            tick = 1/(len(weights)+1)
+            for weight in range(len(weights)):
+                plt.bar(np.arange(len(algorithms)) + tick * weight, [value[weight] for value in exp_df.values()], tick)
+
+            plt.xticks(np.arange(len(exp_df)), exp_df.keys())
+            plt.legend([f'w={w}' for w in weights], loc='upper left')
+            plt.ylabel(descriptions.get(col))
+
+            plt.savefig(f'Results/{column[0].upper() + column[1:]}/Combined/{col[0].upper() + col.replace("_agent", "")[1:]}/{column}-{index}_fig.png')
+            plt.clf()
+
+
+def plot_reversed_graphs(combined_experiments: dict, column: str = 'courseLimit'):
+    for index in experiment_index:
+        for col in fieldnames:
+            exp_df = {f'w={w}': [] for w in weights}
+            for exp in algorithms:
+                for weight in combined_experiments.get(exp):
+                    df = combined_experiments.get(exp).get(weight).get_dataframe()
+                    # find the row that matches the query
+                    row = df.loc[df[column] == f'{index}'][col].values[0]
+                    exp_df[f'w={weight[1]}'].append(row)
+
+            tick = 1/(len(algorithms)+1)
+            for algo in range(len(algorithms)):
+                plt.bar(np.arange(len(weights)) + tick * algo, [value[algo] for value in exp_df.values()], tick)
+
+            plt.xticks(np.arange(len(exp_df)), exp_df.keys())
+            plt.legend(algorithms, loc='upper left')
+            plt.ylabel(descriptions.get(col))
+
+            plt.savefig(f'Results/{column[0].upper() + column[1:]}/Reversed/{col[0].upper() + col.replace("_agent", "")[1:]}/{column}-{index}_fig.png')
+            plt.clf()
+
+
 def plot_graphs_unary(experiments: dict, column: str = 'agents'):
     for col in fieldnames:
         for exp in experiments:
@@ -243,28 +316,25 @@ def plot_graphs_unary(experiments: dict, column: str = 'agents'):
 
 
 def plot_graphs_unary_vs_binary(experiments: dict, column: str = 'agents'):
-    graphs = [["DSA_RC", "RSD", "HBS"], ["DSA", "Greedy", "Random"]]
     index = 0
-    for g in graphs:
+    for g in groups:
         index += 1
         for col in fieldnames:
             for exp in g:
                 ax = sns.lineplot(data=experiments.get(exp).get_dataframe(), x=column, y=col, marker=markers.get(exp),
-                                  markersize=8, color=colors.get(exp), label=exp+" (w)" if exp != 'Random' else exp)
+                                  markersize=8, color=colors.get(exp), label=exp+" (w)")
 
             for exp in g:
-                if exp != 'Random':
-                    ax = sns.lineplot(data=experiments.get(exp+"_Unary").get_dataframe(), x=column, y=col, linestyle="--",
-                                      marker=markers.get(exp), markersize=8, color=colors.get(exp), label=exp+" (w/o)")
+                ax = sns.lineplot(data=experiments.get(exp+"_Unary").get_dataframe(), x=column, y=col, linestyle="--",
+                                  marker=markers.get(exp), markersize=8, color=colors.get(exp), label=exp+" (w/o)")
 
             generate_graph(ax=ax, fieldname=col, column=column, path=f'Results/{column[0].upper() + column[1:]}/Groups/Group{index}/{col}_fig')
 
 
 def plot_graphs_histogram(experiments: dict, column: str = 'agents'):
     global experiments_agents
-    graphs = [["DSA_RC", "RSD", "HBS"], ["DSA", "Greedy", "Random"]]
     index = 0
-    for g in graphs:
+    for g in groups:
         index += 1
         for metric in fieldnames:
             exp_df = {f'{i}': [] for i in experiments_agents}
@@ -288,11 +358,10 @@ def plot_graphs_histogram(experiments: dict, column: str = 'agents'):
 def plot_graphs_bars(experiments: dict, column: str = 'agents'):
     global experiments_agents
     fields = [field for field in fieldnames if field.endswith('agent')]
-    graphs = ["DSA_RC", "RSD", "HBS", "DSA", "Greedy", "Random"]
 
     for index in experiments_agents:
-        exp_df = {f'{g}': [] for g in graphs}
-        for g in graphs:
+        exp_df = {f'{g}': [] for g in algorithms}
+        for g in algorithms:
             df = experiments.get(g).get_dataframe()
             # find the row that matches the query
             row = df.loc[df[column] == index]
@@ -302,7 +371,7 @@ def plot_graphs_bars(experiments: dict, column: str = 'agents'):
 
         tick = 0.25
         for agent in range(len(fields)):
-            plt.bar(np.arange(len(graphs)) + tick * agent, [i[agent] for i in exp_df.values()], tick)
+            plt.bar(np.arange(len(algorithms)) + tick * agent, [i[agent] for i in exp_df.values()], tick)
 
         plt.xticks(np.arange(len(exp_df)), exp_df.keys())
         plt.legend([field[0].upper() + field.replace("_agent", "")[1:] for field in fields])
@@ -355,13 +424,32 @@ class Experiment:
 def create_dirs():
     dirs = ['Data/*', 'Results/*/Groups/Group1', 'Results/*/Groups/Group2', 'Results/*/Friendship/Excluded',
             'Results/*/Friendship/Included', 'Results/*/Experiments/Group1', 'Results/*/Experiments/Group2',
-            'Results/*/Utility']
+            'Results/*/Utility', 'Results/*/#/Utility', 'Results/*/#/Courses', 'Results/*/#/Gini', 'Results/*/#/Friends',
+            'Results/*/#/First', 'Results/*/#/Mid', 'Results/*/#/Last', 'Results/*/Combined/Total']
     for directory in dirs:
         for exp in ['Agents', 'CourseLimit']:
-            os.makedirs(name=directory.replace('*', exp), exist_ok=True)
+            for graph in ['Combined', 'Reversed']:
+                os.makedirs(name=directory.replace('*', exp).replace('#', graph), exist_ok=True)
 
 
-if __name__ == '__main__':
+def save_results(column: str, exps: dict, base_path: Path, date: str, exp_details: str):
+    """ Calculate area beneath graphs"""
+    with open(f'Results/{column[0].upper() + column[1:]}/Area.csv', 'w') as fp:
+        fp.write(plot_area(experiments=exps, column=column))
+
+    column = column[0].upper() + column[1:]
+
+    result_base_path = base_path.joinpath('Results')
+    result_files_dir = result_base_path.joinpath(date, column, exp_details)
+
+    os.makedirs(name=result_files_dir, exist_ok=True)
+    copy_tree(str(result_base_path.joinpath(column)), str(result_files_dir))
+
+    # base_path.joinpath('Archives', file).rename(base_path.joinpath('Archives', 'old', file))
+
+
+def main():
+    global weights, experiment_index
     create_dirs()
 
     """ Generate Experiment Data """
@@ -373,12 +461,27 @@ if __name__ == '__main__':
     # generate_data(students=146, courses=9, theta=1.5)
 
     """ Working with zip files """
+    base_column = None
     base_path = Path(__file__).parent
     files = os.listdir(base_path.joinpath('Archives'))
-    for file in files:
+    for file in sorted(files):
         if file.startswith("courseAlgo") and file.endswith(".zip"):
             date, column, exp_details = re.match(f'^courseAlgo_([^_]+)_([^_]+)_([^_]+).zip', file).groups()
-            ZipFile(base_path.joinpath('Archives').joinpath(file)).extractall(path=base_path.joinpath('Data').joinpath(column))
+            ZipFile(base_path.joinpath('Archives', file)).extractall(path=base_path.joinpath('Data', column))
+
+            weights.add(int(exp_details[1:]))
+            base_column = column
+
+            if exp_details == 'x0':
+                exps = create_dataframes(column=column)
+                plot_graphs_histogram(experiments=exps, column=column)
+                plot_graphs_bars(experiments=exps, column=column)
+
+                save_results(column=column, exps=exps, base_path=base_path, date=date, exp_details=exp_details)
+
+                for dir in os.listdir(base_path.joinpath('Data', column)):
+                    base_path.joinpath('Data', column, dir).replace(base_path.joinpath('Data', column, f'{dir.replace("Agent", "Unary")}_Agent'))
+                continue
 
             exps = create_dataframes(column=column)
             plot_graphs_histogram(experiments=exps, column=column)
@@ -387,22 +490,64 @@ if __name__ == '__main__':
             plot_graphs_unary_vs_binary(experiments=exps, column=column)
             plot_graphs_bars(experiments=exps, column=column)
 
-            """ Calculate area beneath graphs"""
-            with open(f'Results/{column[0].upper() + column[1:]}/Area.csv', 'w') as fp:
-                fp.write(plot_area(experiments=exps, column=column))
+            save_results(column=column, exps=exps, base_path=base_path, date=date, exp_details=exp_details)
 
-            column = column[0].upper() + column[1:]
+    """ Advanced graphs - combined """
+    exps = combine_experiments()
 
-            result_base_path = base_path.joinpath('Results')
-            result_files_dir = result_base_path.joinpath(date).joinpath(column).joinpath(exp_details)
+    # convert the weights and the experiment_index to list and sort
+    weights = list(sorted(weights))
+    experiment_index = list(sorted(experiment_index))
 
-            os.makedirs(name=result_files_dir, exist_ok=True)
-            copy_tree(str(result_base_path.joinpath(column)), str(result_files_dir))
-
-            base_path.joinpath('Archives').joinpath(file).rename(base_path.joinpath('Archives').joinpath('old').joinpath(file))
+    plot_utility_graph(exps, column=base_column)
+    plot_combined_graphs(exps, column=base_column)
+    plot_reversed_graphs(combined_experiments=exps, column=base_column)
 
     """ Create Friendship Matrix Graph """
-    g = Graph()
-    g.build_graph('friendship.csv')
-    g.plot_friendship_graph()
-    g.generate_statistics()
+    if base_column == 'courseLimit':
+        g = Graph()
+        g.build_graph('friendship.csv')
+        g.plot_friendship_graph()
+        g.generate_statistics()
+
+
+def combine_experiments():
+    base_path = Path(__file__).parent
+    files = os.listdir(base_path.joinpath('Archives'))
+    all_exps = {key: {inner_key: {} for inner_key in [f'x{weight}' for weight in weights]} for key in algorithms}
+
+    for file in files:
+        if file.startswith("courseAlgo") and file.endswith(".zip"):
+            date, column, exp_details = re.match(f'^courseAlgo_([^_]+)_([^_]+)_([^_]+).zip', file).groups()
+            ZipFile(base_path.joinpath('Archives', file)).extractall(path=base_path.joinpath('Data', column))
+
+            exps = create_dataframes(column=column)
+            for key in exps:
+                if not key.endswith('Unary'):
+                    all_exps[key].update({exp_details: exps[key]})
+                else:
+                    all_exps[key.replace("_Unary", "")].update({'x0': exps[key]})
+
+    return all_exps
+
+
+def self_extract():
+    base_path = Path(__file__).parent
+    for file in os.listdir(base_path.joinpath('Raw')):
+        if file.startswith("courseAlgo") and file.endswith(".zip"):
+            ZipFile(base_path.joinpath('Raw', file)).extractall(base_path.joinpath('Raw'))
+
+    for file in os.listdir(base_path.joinpath('Raw')):
+        if os.path.isdir(base_path.joinpath('Raw', file)):
+            for exp in os.listdir(base_path.joinpath('Raw', file)):
+                data, weight = re.match(f'^\d+(agents|courseLimit)_(\d+)weight.csv$', exp).groups()
+                os.makedirs(base_path.joinpath('Exps', data, f'x{weight}', file), exist_ok=True)
+                base_path.joinpath('Raw', file, exp).replace(base_path.joinpath('Exps', data, f'x{weight}', file, f'{exp[:exp.find("_")]}.csv'))
+
+    for exp in os.listdir(base_path.joinpath('Exps')):
+        for weight in os.listdir(base_path.joinpath('Exps', exp)):
+            filename = f'courseAlgo_{datetime.datetime.now().date()}_{exp}_{weight}'
+            shutil.make_archive(base_path.joinpath('Archives', filename), 'zip', base_path.joinpath('Exps', exp, weight))
+
+
+main()
