@@ -29,7 +29,7 @@ import bgu.dcr.az.exen.pgen.AbstractProblemGenerator;
 public class FirstModel extends AbstractProblemGenerator {
 
 	@Variable(name = "n", description = "number of variables", defaultValue = "90")
-	int n = 90;
+	int n = 177;
 
 	@Variable(name = "c", description = "number of courses desired", defaultValue = "3")
 	int c = 3;
@@ -38,11 +38,14 @@ public class FirstModel extends AbstractProblemGenerator {
 	int s = 146;
 
 	@Variable(name = "w", description = "weight of friendship", defaultValue = "2")
-	int w = 2;
+	int w = 5;
 
 	@Variable(name = "x", description = "problem definition (0=simulated, 1=user-study)", defaultValue = "0")
 	int x = 0;
-
+	
+	@Variable(name = "b", description = "save assignment output (0=false, 1=true)", defaultValue = "0")
+	int b = 1;
+	
 	int d = 6;
 
 	// number of friends
@@ -141,9 +144,16 @@ public class FirstModel extends AbstractProblemGenerator {
 	
 	private int[][] swap(int[][] mat){
         int[][] tmp = mat.clone();
-        for(int i=0; i<mat.length; i++)
-            mat[i] = tmp[swaps.get(i)];
-        return mat;
+        for(int i=0; i<mat.length; i++) {
+            tmp[swaps.get(i)] = mat[i];
+            if(mat.length == mat[0].length) {
+            	int[] row = tmp[swaps.get(i)].clone();
+            	for(int j: swaps.keySet()) {
+            		tmp[swaps.get(i)][swaps.get(j)] = row[j];
+            	}
+            }
+        }
+        return tmp;
     }
 
 	private List<int[]> generate(int n, int k) {
@@ -314,8 +324,9 @@ public class FirstModel extends AbstractProblemGenerator {
 		Set<Integer> random_picks = new HashSet<Integer>();
 		while(random_picks.size() < amount) {
 			int friend = rnd.nextInt(n);
-			if(friend != self)
+			if(friend != self) {
 				random_picks.add(friend);
+			}
 		}
 		return random_picks;
 	}
@@ -425,7 +436,7 @@ public class FirstModel extends AbstractProblemGenerator {
 		if(x == 0)
 			generate_problem(pick_random_agents(n, s, rand), "courses.txt", rand);
 
-		String params = "numCourses=" + Integer.toString(c) + ",problemDefinition=" + Integer.toString(x) + ",weight=" + Integer.toString(w);
+		String params = "numCourses=" + Integer.toString(c) + ",problemDefinition=" + Integer.toString(x) + ",weight=" + Integer.toString(w) + ",debug=" + Integer.toString(b);
 		writeParams("Parameters.txt", params);
 
 		List<int[]> combinations = defineProblem();
@@ -453,4 +464,3 @@ public class FirstModel extends AbstractProblemGenerator {
 	 * 
 	 */
 }
-
