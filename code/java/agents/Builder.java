@@ -2,16 +2,21 @@ package ext.sim.agents;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+
+import com.google.common.collect.Lists;
 
 import bgu.dcr.az.api.agt.*;
 import bgu.dcr.az.api.ano.*;
@@ -34,7 +39,10 @@ public class Builder {
 
 	private static int num_agents;
 	private static int extra_courses;
+	private static int num_rounds = 0;
 	private static boolean done;
+	
+	private List<String> filesCopy;
 
 	private static final Object counterLock = new Object();
 	private static final LocalTime start_time = LocalTime.now();
@@ -42,7 +50,7 @@ public class Builder {
 	public Builder(ImmutableProblem problem, int limit) {
 		p = problem;
 		courseLimit = limit;
-
+		
 		done = false;
 		num_agents = 0;
 		extra_courses = Integer.MAX_VALUE;
@@ -50,6 +58,7 @@ public class Builder {
 		coursesRating = readCourses("courses_swap.csv");
 		friendsRating = readFriendship("friendship_swap.csv");
 		problemParams = readParams("Parameters.txt");
+		filesCopy = new ArrayList<>(Lists.newArrayList("courses_swap", "friendship_swap"));
 	}
 
 	public int chooseAtRandom(int limit) {
@@ -68,7 +77,7 @@ public class Builder {
 		done = false;
 	}
 
-	public double gini_coef(Assignment cpa) {
+	private double gini_coef(Assignment cpa) {
 		double coef = 0;
 		double mean = 0;
 		mean = (double) calculateTotalCost(cpa) / cpa.getNumberOfAssignedVariables();
@@ -96,9 +105,9 @@ public class Builder {
 		HashMap<String, Integer> coursesAssignments = new HashMap<>();
 		for(int var: cpa.assignedVariables()) {
 			for(String str: courseCombinations.get(cpa.getAssignment(var))) {
-				if(coursesAssignments.get(str) == null)
+				if(coursesAssignments.get(str) == null) 
 					coursesAssignments.put(str, 1);
-				else
+				else 
 					coursesAssignments.put(str, coursesAssignments.get(str)+1);
 			}
 		}
@@ -108,7 +117,7 @@ public class Builder {
 	public String checkSelfAssignment(int val, HashMap<String, Integer> coursesAssignments) {
 		int max_beta = 0;
 		String course_key = "";
-		for(String str: courseCombinations.get(val)) {
+		for(String str: courseCombinations.get(val)) { 
 			if(coursesAssignments.get(str) != null && coursesAssignments.get(str) > max_beta && coursesAssignments.get(str) > courseLimit) {
 				max_beta = coursesAssignments.get(str);
 				course_key = str;
@@ -118,7 +127,7 @@ public class Builder {
 		return course_key;
 	}
 
-	public String checkNewAssignment(int old_val, int new_val, HashMap<String, Integer> coursesAssignments) {
+	private String checkNewAssignment(int old_val, int new_val, HashMap<String, Integer> coursesAssignments) {
 		int max_beta = courseLimit;
 		String course_key = "";
 		if(old_val != -1) {
@@ -126,7 +135,7 @@ public class Builder {
 				coursesAssignments.put(str, coursesAssignments.get(str)-1);
 			}
 		}
-		for(String str: courseCombinations.get(new_val)) {
+		for(String str: courseCombinations.get(new_val)) { 
 			if(coursesAssignments.get(str) != null && coursesAssignments.get(str) >= max_beta) {
 				max_beta = coursesAssignments.get(str);
 				course_key = str;
@@ -136,7 +145,7 @@ public class Builder {
 		return course_key;
 	}
 
-	public int intersection_courses(String[] courses1, String[] courses2) {
+	private int intersection_courses(String[] courses1, String[] courses2) {
 		int common = 0;
 		for(String str1: courses1) {
 			for(String str2: courses2) {
@@ -147,22 +156,66 @@ public class Builder {
 		return common;
 	}
 
-	public int calc_friends(Assignment cpa) {
+	private int calc_friends(Assignment cpa) {
 		int friends = 0;
 		for(int i: cpa.assignedVariables()) {
-			for(int j: p.getNeighbors(i)) {
-				friends += intersection_courses(courseCombinations.get(cpa.getAssignment(i)), courseCombinations.get(cpa.getAssignment(j)));
-			}
+			friends += find_friends(cpa, i);
 		}
 		return friends;
 	}
-
-	private void printAssignments(Assignment cpa) {
-		for(int i: cpa.assignedVariables()) {
-			System.out.println("ID: " + Integer.toString(i) + ", Assignment: " + String.join(" & ", courseCombinations.get(cpa.getAssignment(i))) + ", Cost: " + Integer.toString(calculateAgentCost(cpa, i, cpa.getAssignment(i))));
+	
+	private int find_friends(Assignment cpa, int id) {
+		int friends = 0;
+		for(int i: p.getNeighbors(id)) {
+			friends += intersection_courses(courseCombinations.get(cpa.getAssignment(id)), courseCombinations.get(cpa.getAssignment(i)));
 		}
+		return friends;
 	}
-
+	
+	private String friends_toString(Set<Integer> friends) {
+		String output = "";
+		for(int i: friends) 
+			output += "a" + Integer.toString(i) + " & ";
+		if(output.length() > 0)
+			output.substring(0, output.length()-3);
+		return output;
+	}
+	
+	private String courses_toString(Assignment cpa, int id) {
+		String output = "";
+		for(String course1: courseCombinations.get(cpa.getAssignment(id))) {
+			output += course1 + ": ";
+			for(int friend: p.getNeighbors(id)) {
+				for(String course2: courseCombinations.get(cpa.getAssignment(friend))) {
+					if(course1 == course2)
+						output += "a" + Integer.toString(friend) + " & ";
+				}
+			}
+			if(output.charAt(output.length()-2) == '&') 
+				output = output.substring(0, output.length()-2);
+			output += "| ";
+		}
+		return output.substring(0, output.length()-3);
+	}
+	
+	private void saveAssignments(Assignment cpa, String filename) {
+		try {
+			BufferedWriter writer = new BufferedWriter(new FileWriter(filename, true));
+			writer.write(String.join(",", "ID", "Assignment", "Total Utiltiy", "Courses Utility", "Friendship Utility", "Number of Friends in Courses", "List of Friends", "Friends Assignments"));
+			writer.newLine();
+			for(int i: cpa.assignedVariables()) {
+				writer.write(String.join(",", Integer.toString(i), String.join(" & ", courseCombinations.get(cpa.getAssignment(i))), Integer.toString(calculateAgentCost(cpa, i, cpa.getAssignment(i))), Integer.toString(calculateUnary(i, convertDomain2Courses(cpa.getAssignment(i)))), Integer.toString(calculateBinary(cpa, i, convertDomain2Courses(cpa.getAssignment(i)))), Integer.toString(find_friends(cpa, i)), friends_toString(p.getNeighbors(i)), courses_toString(cpa, i)));
+				writer.newLine();
+			}
+			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	
 	private int calculateTotalCost(Assignment cpa) {
 		int cost=0;
 		for(int i: cpa.assignedVariables()) {
@@ -170,38 +223,75 @@ public class Builder {
 		}
 		return cost;
 	}
+	
+	private int calculateTotalUnary(Assignment cpa) {
+		int cost=0;
+		for(int i: cpa.assignedVariables()) {
+			cost += calculateUnary(i, convertDomain2Courses(cpa.getAssignment(i)));
+		}
+		return cost;
+	}
+	
+	private int calculateTotalBinary(Assignment cpa) {
+		int cost=0;
+		for(int i: cpa.assignedVariables()) {
+			cost += calculateBinary(cpa, i, convertDomain2Courses(cpa.getAssignment(i)));
+		}
+		return cost;
+	}
+	
+	private static void copyFile(File src, File dest) throws IOException {
+	    Files.copy(src.toPath(), dest.toPath());
+	} 
 
 	public void output(String experiment, Assignment cpa) {
-		String filename = ".\\"+experiment+"_Agent\\";
-		if(problemParams.get("problemDefinition") == 0)
-			filename += Integer.toString(p.getNumberOfVariables()) + "agents_" + Integer.toString(problemParams.get("weight")) + "weight.csv";
-		else
-			filename += Integer.toString(courseLimit) + "courseLimit_" + Integer.toString(problemParams.get("weight")) + "weight.csv";
+		String basepath = experiment + "_Agent\\";
+		String filename = basepath;
+		if(problemParams.get("problemDefinition") == 0) {
+			filename += Integer.toString(p.getNumberOfVariables()) + "agents_";
+			basepath = "Debug\\" + basepath + "Agents\\x" + Integer.toString(problemParams.get("weight")) + "\\" + Integer.toString(p.getNumberOfVariables());
+		}
+		else {
+			filename += Integer.toString(courseLimit) + "courseLimit_";
+			basepath = "Debug\\" + basepath + "CourseLimit\\x" + Integer.toString(problemParams.get("weight")) + "\\" + Integer.toString(courseLimit);
+		}
+		filename += Integer.toString(problemParams.get("weight")) + "weight.csv";
 		synchronized(counterLock) {
 			if(getAgents() == p.getNumberOfVariables() && !done) {
 				done = true;
+				num_rounds += 1;
 				try {
 					BufferedWriter writer = new BufferedWriter(new FileWriter(filename, true));
-					writer.write(String.join(",", Integer.toString(calculateTotalCost(cpa)), Integer.toString(getExtraCourses()), Double.toString(gini_coef(cpa)), Integer.toString(calc_friends(cpa)), to_String(cpa)));
+					writer.write(String.join(",", Integer.toString(calculateTotalCost(cpa)), Integer.toString(getExtraCourses()), Double.toString(gini_coef(cpa)), Integer.toString(calc_friends(cpa)), to_String(cpa), Integer.toString(calculateTotalUnary(cpa)), Integer.toString(calculateTotalBinary(cpa))));
 					writer.newLine();
 					writer.close();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
+				if(problemParams.get("debug") == 1) {
+					new File(basepath).mkdirs();
+					for(String file: filesCopy) {
+						try {
+							copyFile(new File(file + ".csv"), new File(basepath + "\\" + file + "_" + Integer.toString(((num_rounds / 6) % 50) + 1) + ".csv"));
+							// TODO: Think out to save the filename when performing multiple experiments
+						} catch (IOException e) {}
+					}
+					saveAssignments(cpa, basepath + "\\log_" + Integer.toString(((num_rounds / 6) % 50) + 1) + ".csv");
+				}
 				clear();
 			}
 		}
 	}
-
+	
 	private String to_String(Assignment cpa) {
 		int mid_agent = cpa.getNumberOfAssignedVariables()/2;
 		int last_agent = cpa.getNumberOfAssignedVariables() - 1;
 		return Integer.toString(calculateAgentCost(cpa, 0, cpa.getAssignment(0))) + "," + Integer.toString(calculateAgentCost(cpa, mid_agent, cpa.getAssignment(mid_agent))) + "," + Integer.toString(calculateAgentCost(cpa, last_agent, cpa.getAssignment(last_agent)));
 	}
 
-	public int checkMinAssignment(int new_val, HashMap<String, Integer> coursesAssignments) {
+	private int checkMinAssignment(int new_val, HashMap<String, Integer> coursesAssignments) {
 		int exceed = 0;
-		for(String str: courseCombinations.get(new_val)) {
+		for(String str: courseCombinations.get(new_val)) { 
 			if(coursesAssignments.get(str) != null && coursesAssignments.get(str) >= courseLimit) {
 				exceed += (coursesAssignments.get(str) - courseLimit);
 			}
@@ -227,7 +317,7 @@ public class Builder {
 		}
 		return price;
 	}
-
+	
 	private int calculateBinary(Assignment cpa, int agent, int[] courses) {
 		int price = 0;
 		for(int i=0; i<friendsRating[agent].length; i++) {
@@ -240,7 +330,7 @@ public class Builder {
 		}
 		return price;
 	}
-
+	
 	public int calculateAgentCost(Assignment cpa, int agent, int domain) {
 		int[] courses = convertDomain2Courses(domain);
 		return calculateUnary(agent, courses) + calculateBinary(cpa, agent, courses);
@@ -258,7 +348,7 @@ public class Builder {
 		while(!currentDomain.isEmpty()) {
 			int val = currentDomain.iterator().next();
 			currentDomain.remove(val);
-			if (calculateAgentCost(cpa, id, val) > cost && checkNewAssignment(oldVal, val, coursesAssignments).equals("")) {
+			if (calculateAgentCost(cpa, id, val) > cost && checkNewAssignment(oldVal, val, coursesAssignments).equals("")) {	
 				bestVal = val;
 				cost = calculateAgentCost(cpa, id, val);
 			}
@@ -270,7 +360,7 @@ public class Builder {
 				int val = currentDomain.iterator().next();
 				currentDomain.remove(val);
 				int min = checkMinAssignment(val, coursesAssignments);
-				if ((calculateAgentCost(cpa, id, val) >= cost && min <= exceed) || min < exceed) {
+				if ((calculateAgentCost(cpa, id, val) >= cost && min <= exceed) || min < exceed) {	
 					bestVal = val;
 					cost = calculateAgentCost(cpa, id, val);
 					exceed = min;
@@ -281,26 +371,26 @@ public class Builder {
 		return bestVal;
 	}
 
-	public List<String[]> readCombinations(String csv) {
-		String line = "";
-		String splitBy = ",";
+	private List<String[]> readCombinations(String csv) {
+		String line = "";  
+		String splitBy = ",";  
 		List<String[]> combinations = new ArrayList<>();
-		try
-		{
-			BufferedReader br = new BufferedReader(new FileReader(csv));
-			while ((line = br.readLine()) != null)
-			{
+		try   
+		{  
+			BufferedReader br = new BufferedReader(new FileReader(csv));  
+			while ((line = br.readLine()) != null) 
+			{  
 				combinations.add(line.split(splitBy));
 			}
 			br.close();
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
+		}   
+		catch (IOException e)   
+		{  
+			e.printStackTrace();  
 		}
 		return combinations;
 	}
-
+	
 	private int intersectionSize(int[] arr1, int[] arr2) {
 		Set<Integer> set = new HashSet<Integer>();
 		for(int i=0; i<arr1.length; i++) {
@@ -315,16 +405,16 @@ public class Builder {
 
 	private int[][] readCourses(String csv) {
 		int[][] coursesRatings = null;
-		String line = "";
-		String splitBy = ",";
+		String line = "";  
+		String splitBy = ",";  
 		Boolean first = false;
 		int index = 0;
 		int c_len = 0;
-		try
-		{
-			BufferedReader br = new BufferedReader(new FileReader(csv));
-			while ((line = br.readLine()) != null && index < p.getNumberOfVariables())
-			{
+		try   
+		{  
+			BufferedReader br = new BufferedReader(new FileReader(csv));  
+			while ((line = br.readLine()) != null && index < p.getNumberOfVariables()) 
+			{  
 				String[] ratings = line.split(splitBy); // 9,2,3,5,8,7,1,4,6
 				if(!first) {
 					c_len = ratings.length;
@@ -339,27 +429,27 @@ public class Builder {
 				}
 			}
 			br.close();
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
+		}   
+		catch (IOException e)   
+		{  
+			e.printStackTrace();  
 		}
 		return coursesRatings;
 	}
-
+	
 	private int[][] readFriendship(String csv) {
-		String line = "";
-		String splitBy = ",";
+		String line = "";  
+		String splitBy = ",";  
 		Boolean first = false;
 		int index = 0;
 		int n = p.getNumberOfVariables();
 		int[][] friendsRating = null;
-		try
-		{
-			BufferedReader br = new BufferedReader(new FileReader(csv));
-			while ((line = br.readLine()) != null)
-			{
-				String[] ratings = line.split(splitBy);
+		try   
+		{  
+			BufferedReader br = new BufferedReader(new FileReader(csv));  
+			while ((line = br.readLine()) != null) 
+			{  
+				String[] ratings = line.split(splitBy); 
 				if(!first) {
 					friendsRating = new int[n][n];
 					first = true;
@@ -372,10 +462,10 @@ public class Builder {
 				}
 			}
 			br.close();
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
+		}   
+		catch (IOException e)   
+		{  
+			e.printStackTrace();  
 		}
 		return friendsRating;
 	}
