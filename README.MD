@@ -124,11 +124,11 @@ The default output will result to csv files for 40,45,...,90agents.csv and conta
 Notes:
 
  - In config directory you will find the test used to run the simulated data & user study.
- - test_cl.xml contains the test for the user study while test.xml is the simulated data. 
+ - test-cl.xml contains the test for the user study while test.xml is the simulated data. 
  - To Run the tests, make sure to place the desired config file in the main java directory (next to agents & modules directories)
- - If you are using test_cl.xml make sure to rename the file to test.xml, otherwise it won't work.
+ - If you are using test-cl.xml make sure to rename the file to test.xml, otherwise it won't work.
  - If you are running the simulated data, make sure to change the weight inside the code (FirstModel.java) - This change is required for simulated data only.
- - For the user study, you will find in test_cl.xml the friendship weights (see run-var)
+ - For the user study, you will find in test-cl.xml the friendship weights (see run-var)
  - For simulated data, friendship.csv is required while for user study - a file named friendship<w>.csv is required (e.g. friendship1.csv) where <w> defines the weight.
  - Make sure you update the friendship.csv weights based on your desire (see friendship1.csv) and multiply the values by the desired weight.
  - courses.csv file is used for the user study while courses.txt is used for the simulated data
