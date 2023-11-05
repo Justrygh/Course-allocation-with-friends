@@ -1,7 +1,7 @@
 <experiment>
     <sync-test name="Binary - Course Limit = 60" repeat-count="50" seed="1" run-var="w" start="0" end="5" tick-size="1">  
 		<!-- Course Limit = 60 -->
-		<algorithm name="Random">
+	    <algorithm name="Random">
         	<assign var="courseLimit" val="60"/>
         </algorithm>  
         <algorithm name="Greedy">
@@ -24,7 +24,7 @@
     </sync-test>
     <sync-test name="Binary - Course Limit = 65" repeat-count="50" seed="1" run-var="w" start="0" end="5" tick-size="1">  
 		<!-- Course Limit = 65 -->
-		<algorithm name="Random">
+	    <algorithm name="Random">
         	<assign var="courseLimit" val="65"/>
         </algorithm>  
         <algorithm name="Greedy">
@@ -47,7 +47,7 @@
     </sync-test>
     <sync-test name="Binary - Course Limit = 70" repeat-count="50" seed="1" run-var="w" start="0" end="5" tick-size="1">  
 		<!-- Course Limit = 70 -->
-		<algorithm name="Random">
+	    <algorithm name="Random">
         	<assign var="courseLimit" val="70"/>
         </algorithm>  
         <algorithm name="Greedy">
@@ -70,7 +70,7 @@
     </sync-test>
     <sync-test name="Binary - Course Limit = 75" repeat-count="50" seed="1" run-var="w" start="0" end="5" tick-size="1">  
 		<!-- Course Limit = 75 -->
-		<algorithm name="Random">
+	    <algorithm name="Random">
         	<assign var="courseLimit" val="75"/>
         </algorithm>  
         <algorithm name="Greedy">
@@ -93,7 +93,7 @@
     </sync-test>
     <sync-test name="Binary - Course Limit = 80" repeat-count="50" seed="1" run-var="w" start="0" end="5" tick-size="1">  
 		<!-- Course Limit = 80 -->
-		<algorithm name="Random">
+	    <algorithm name="Random">
         	<assign var="courseLimit" val="80"/>
         </algorithm>  
         <algorithm name="Greedy">
@@ -116,7 +116,7 @@
     </sync-test>
     <sync-test name="Binary - Course Limit = 85" repeat-count="50" seed="1" run-var="w" start="0" end="5" tick-size="1">  
 		<!-- Course Limit = 85 -->
-		<algorithm name="Random">
+	    <algorithm name="Random">
         	<assign var="courseLimit" val="85"/>
         </algorithm>  
         <algorithm name="Greedy">
@@ -139,7 +139,7 @@
     </sync-test>
     <sync-test name="Binary - Course Limit = 90" repeat-count="50" seed="1" run-var="w" start="0" end="5" tick-size="1">  
 		<!-- Course Limit = 90 -->
-		<algorithm name="Random">
+	    <algorithm name="Random">
         	<assign var="courseLimit" val="90"/>
         </algorithm>  
         <algorithm name="Greedy">

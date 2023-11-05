@@ -1,1 +1,0 @@
-numCourses=3,problemDefinition=0,weight=5,debug=1

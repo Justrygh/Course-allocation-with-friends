@@ -1,0 +1,25 @@
+<experiment>
+    <sync-test name="Binary - Course Limit = 30" seed="1" repeat-count="50" run-var="n" start="40" end="90" tick-size="5">  
+	    <!-- Course Limit = 30 -->
+	    <algorithm name="Random">
+        	<assign var="courseLimit" val="30"/>
+        </algorithm>  
+        <algorithm name="Greedy">
+        	<assign var="courseLimit" val="30"/>
+        </algorithm>
+        <algorithm name="HBS">
+        	<assign var="courseLimit" val="30"/>
+        </algorithm>  
+        <algorithm name="Iterative">
+        	<assign var="courseLimit" val="30"/>
+        </algorithm> 
+         <algorithm name="DSA_RC">
+        	<assign var="courseLimit" val="30"/>
+        </algorithm>  
+        <algorithm name="DSA">
+        	<assign var="courseLimit" val="30"/>
+        </algorithm>
+        <FirstModel/>
+        <cc-sc/>
+    </sync-test>
+</experiment>   
